@@ -1,0 +1,13 @@
+{
+    "search.followSymlinks": false,
+    "files.watcherExclude": {
+        ".flatpak-builder": true,
+        "flatpak/build": true,
+        "flatpak/repo": true
+    },
+    "rust-analyzer.files.exclude": [
+        ".flatpak-builder",
+        "flatpak/build",
+        "flatpak/repo"
+    ]
+}

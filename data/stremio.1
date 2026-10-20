@@ -1,0 +1,62 @@
+.TH STREMIO 1 "2026-09-16" "stremio" "User Commands"
+.SH NAME
+stremio \- GTK4/WebKitGTK6 desktop shell for Stremio
+.SH SYNOPSIS
+.B stremio
+[\fIOPTIONS\fR] [\fIURI\fR]
+.SH DESCRIPTION
+.B stremio
+is a native GTK4 desktop application that embeds the Stremio web client
+(via WebKitGTK6) alongside a local streaming server, providing a standalone
+media center experience for movies, series and add-ons.
+.PP
+On startup it launches the streaming server itself, by running
+.B node
+on the script named by the
+.B SERVER_PATH
+environment variable, and points its embedded browser view at it.
+.SH OPTIONS
+.TP
+.BR \-d ", " \-\-dev
+Open the WebKit developer tools on startup.
+.TP
+.BR \-u ", " \-\-url =\fIURL\fR
+Set the startup URL loaded in the embedded browser view. Defaults to the
+local streaming server's web client proxy URL.
+.TP
+.BR \-n ", " \-\-no\-window\-decorations
+Disable client-side window decorations (title bar).
+.TP
+.BR \-h ", " \-\-help
+Print a short help summary and exit.
+.TP
+.BR \-V ", " \-\-version
+Print the version number and exit.
+.SH ARGUMENTS
+.TP
+.I URI
+An optional URI (e.g. a stream or magnet link) passed through to the
+underlying GTK application for handling, the same way a file manager or
+browser would hand off a link to a registered application.
+.SH FILES
+.TP
+.I $XDG_DATA_HOME/stremio/
+Per-user application data directory, or
+.I ~/.local/share/stremio/
+when
+.B XDG_DATA_HOME
+is unset.
+.SH ENVIRONMENT
+.TP
+.B SERVER_PATH
+Path to the streaming server script that is run with
+.BR node .
+Required: the application exits if it is unset.
+.TP
+.B XDG_DATA_HOME
+Base directory for the per-user data directory described under
+.BR FILES .
+.SH AUTHOR
+Smart Code OOD (Stremio).
+.SH REPORTING BUGS
+https://github.com/Stremio/stremio-linux-shell/issues

@@ -1,0 +1,323 @@
+use std::cell::{Cell, RefCell};
+
+use adw::{prelude::*, subclass::prelude::*};
+use gtk::glib::{self, Properties, clone};
+use tracing::error;
+
+use crate::{
+    app::{
+        config::URI_SCHEME,
+        discord::Discord,
+        ipc::{
+            self,
+            event::{IpcEvent, IpcEventDiscord, IpcEventMpv},
+        },
+        mpris::Mpris,
+        tray::Tray,
+        video::Video,
+        webview::WebView,
+        window::Window,
+    },
+    spawn_local, utils,
+};
+
+const PRELOAD_SCRIPT: &str = include_str!("ipc/preload.js");
+
+#[derive(Properties, Default)]
+#[properties(wrapper_type = super::Application)]
+pub struct Application {
+    #[property(get, set)]
+    dev_mode: Cell<bool>,
+    #[property(get, set)]
+    startup_url: RefCell<String>,
+    #[property(get, set)]
+    decorations: Cell<bool>,
+    tray: RefCell<Option<Tray>>,
+    mpris: RefCell<Option<Mpris>>,
+    window: RefCell<Option<Window>>,
+    webview: RefCell<Option<WebView>>,
+    deeplink: RefCell<Option<String>>,
+}
+
+#[glib::object_subclass]
+impl ObjectSubclass for Application {
+    const NAME: &'static str = "Application";
+    type Type = super::Application;
+    type ParentType = adw::Application;
+}
+
+#[glib::derived_properties]
+impl ObjectImpl for Application {}
+
+impl ApplicationImpl for Application {
+    fn startup(&self) {
+        self.parent_startup();
+
+        let app = self.obj();
+        app.setup_actions();
+        app.setup_accels();
+        app.setup_css();
+    }
+
+    fn activate(&self) {
+        self.parent_activate();
+
+        let app = self.obj();
+
+        if let Some(window) = app.active_window() {
+            window.present();
+            return;
+        }
+
+        let tray = Tray::default();
+        let video = Video::default();
+        let mpris = Mpris::default();
+        let discord = Discord::new();
+
+        let startup_url = self.startup_url.borrow();
+        let dev_mode = self.dev_mode.get();
+
+        let webview = WebView::default();
+        webview.load_uri(&startup_url);
+        webview.inject_script(PRELOAD_SCRIPT);
+        webview.dev_mode(dev_mode);
+
+        let window = Window::new(&app);
+        window.set_property("decorations", self.decorations.get());
+        window.set_underlay(&video);
+        window.set_overlay(&webview);
+
+        video.connect_playback_started(clone!(
+            #[weak]
+            mpris,
+            move || {
+                mpris.start();
+            }
+        ));
+
+        video.connect_playback_ended(clone!(
+            #[weak]
+            window,
+            #[weak]
+            webview,
+            #[weak]
+            mpris,
+            move |reason| {
+                mpris.stop();
+                window.enable_idling();
+
+                let error = (reason == "error").then(|| "Stream failed to load".to_string());
+                let message = ipc::create_response(IpcEvent::Mpv(IpcEventMpv::Ended((
+                    reason.to_string(),
+                    error,
+                ))));
+                webview.send(&message);
+            }
+        ));
+
+        video.connect_mpv_property_change(clone!(
+            #[weak]
+            webview,
+            move |name, value| {
+                let message = ipc::create_response(IpcEvent::Mpv(IpcEventMpv::Change((
+                    name.to_string(),
+                    value,
+                ))));
+
+                webview.send(&message);
+            }
+        ));
+
+        let deeplink = self.deeplink.clone();
+        webview.connect_ipc(clone!(
+            #[weak]
+            app,
+            #[weak]
+            window,
+            #[weak]
+            video,
+            #[weak]
+            mpris,
+            move |webview: WebView, message: &str| {
+                if let Ok(event) = ipc::parse_request(message) {
+                    match event {
+                        IpcEvent::Init => {
+                            let message = ipc::create_response(IpcEvent::Init);
+                            webview.send(&message);
+                        }
+                        IpcEvent::Ready => {
+                            if let Some(ref uri) = *deeplink.borrow() {
+                                let message =
+                                    ipc::create_response(IpcEvent::OpenMedia(uri.to_string()));
+                                webview.send(&message);
+                            }
+                        }
+                        IpcEvent::Fullscreen(state) => {
+                            window.set_fullscreen(state);
+
+                            let message = ipc::create_response(IpcEvent::Fullscreen(state));
+                            webview.send(&message);
+                        }
+                        IpcEvent::InterfaceScale(scale) => {
+                            webview.set_interface_scale(scale);
+                        }
+                        IpcEvent::MediaStatus(status) => {
+                            mpris.set_status(status);
+
+                            if status {
+                                window.enable_idling();
+                            } else {
+                                window.disable_idling();
+                            }
+                        }
+                        IpcEvent::MediaMetadata((title, artist, artwork)) => {
+                            mpris.set_metadata(title, artist, artwork);
+                        }
+                        IpcEvent::Quit => {
+                            app.quit();
+                        }
+                        IpcEvent::Discord(event) => match event {
+                            IpcEventDiscord::Connect => {
+                                let connected = discord.connect();
+                                let message = ipc::create_response(IpcEvent::Discord(
+                                    IpcEventDiscord::Status(connected),
+                                ));
+                                webview.send(&message);
+                            }
+                            IpcEventDiscord::Disconnect => discord.disconnect(),
+                            IpcEventDiscord::SetActivity((details, state, image)) => {
+                                discord.set_activity(details, state, image)
+                            }
+                            IpcEventDiscord::ClearActivity => discord.clear_activity(),
+                            _ => {}
+                        },
+                        IpcEvent::Mpv(event) => match event {
+                            IpcEventMpv::Observe(name) => video.observe_mpv_property(name),
+                            IpcEventMpv::Command((name, args)) => {
+                                video.send_mpv_command(name, args)
+                            }
+                            IpcEventMpv::Set((name, value)) => video.set_mpv_property(name, value),
+                            _ => {}
+                        },
+                        _ => {}
+                    }
+                }
+            }
+        ));
+
+        webview.connect_fullscreen(clone!(
+            #[weak]
+            window,
+            move |fullscreen: bool| {
+                window.set_fullscreen(fullscreen);
+            }
+        ));
+
+        webview.connect_open_external(clone!(
+            #[weak]
+            window,
+            move |data| {
+                if data.starts_with("application/octet-stream") {
+                    spawn_local!(async move {
+                        match utils::download_file("playlist.m3u8", data).await {
+                            Ok(file_path) => window.open_file(file_path),
+                            Err(e) => error!("Failed to download file: {e}"),
+                        }
+                    });
+                } else {
+                    window.open_uri(data);
+                }
+            }
+        ));
+
+        window.connect_visibility(clone!(
+            #[weak]
+            webview,
+            #[weak]
+            tray,
+            move |state| {
+                let message = ipc::create_response(IpcEvent::Visibility(state));
+                webview.send(&message);
+
+                tray.update(state);
+            }
+        ));
+        tray.connect_show(clone!(
+            #[weak]
+            window,
+            move || {
+                window.present();
+            }
+        ));
+
+        tray.connect_hide(clone!(
+            #[weak]
+            window,
+            move || {
+                window.set_visible(false);
+            }
+        ));
+
+        tray.connect_quit(clone!(
+            #[weak]
+            app,
+            move || {
+                app.quit();
+            }
+        ));
+
+        mpris.connect_paused(clone!(
+            #[weak]
+            webview,
+            move |paused| {
+                let message = ipc::create_response(IpcEvent::MediaStatus(paused));
+                webview.send(&message);
+            }
+        ));
+
+        mpris.connect_raise(clone!(
+            #[weak]
+            window,
+            move || {
+                window.activate();
+            }
+        ));
+
+        window.present();
+
+        *self.tray.borrow_mut() = Some(tray);
+        *self.mpris.borrow_mut() = Some(mpris);
+        *self.window.borrow_mut() = Some(window);
+        *self.webview.borrow_mut() = Some(webview);
+    }
+
+    fn open(&self, files: &[gtk::gio::File], hint: &str) {
+        self.parent_open(files, hint);
+
+        if let Some(file) = files.first() {
+            let uri = file.uri().to_string();
+            if uri.starts_with(URI_SCHEME) {
+                let mut deeplink = self.deeplink.borrow_mut();
+                *deeplink = Some(uri.clone());
+
+                if let Some(ref webview) = *self.webview.borrow() {
+                    let message = ipc::create_response(IpcEvent::OpenMedia(uri));
+                    webview.send(&message);
+                }
+            }
+        }
+
+        self.activate();
+    }
+
+    fn shutdown(&self) {
+        if let Some(window) = self.window.take() {
+            window.destroy();
+        }
+
+        self.parent_shutdown();
+    }
+}
+
+impl GtkApplicationImpl for Application {}
+impl AdwApplicationImpl for Application {}
