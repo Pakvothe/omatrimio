@@ -147,6 +147,8 @@ pub fn parse_colors(text: &str) -> HashMap<String, String> {
 pub struct Look {
     pub palette: Palette,
     pub radius: u32,
+    /// Hyprland's window border width, which focused cards borrow.
+    pub border: u32,
     pub font: Option<String>,
 }
 
@@ -185,6 +187,8 @@ impl Look {
     --overlay-color: {overlay} !important;
     --outer-glow: 0px 0px 15px {glow} !important;
     --border-radius: {radius}px !important;
+    --omatrimio-border: {border}px;
+    --omatrimio-credit: "omatrimio {version} · based on Stremio";
     color-scheme: {scheme};
 }}
 
@@ -221,6 +225,8 @@ svg[data-omatrimio-icon] > path[data-omatrimio-glyph] {{
             overlay = p.foreground.alpha(0.06),
             glow = p.accent.alpha(0.37),
             radius = self.radius,
+            border = self.border.clamp(1, 4),
+            version = env!("CARGO_PKG_VERSION"),
             scheme = if p.light { "light" } else { "dark" },
             selection = p.accent.alpha(0.35),
             art_logo = art::css_url(&art::mark(p.accent, p.foreground)),
@@ -232,7 +238,37 @@ svg[data-omatrimio-icon] > path[data-omatrimio-glyph] {{
             )),
             art_empty = art::css_url(&art::empty(p.foreground)),
             art_avatar = art::css_url(&art::avatar(p.accent, p.accent.readable_text(p))),
-        ) + LAYOUT
+        ) + &self.backdrop_palette() + LAYOUT
+    }
+}
+
+impl Look {
+    /// The title page and the player put text over a photo or the video, so
+    /// they stay dark the way players do. On a light theme the palette is
+    /// swapped inside them: the theme's dark text color becomes the surface
+    /// and its light background becomes the text. Dark themes need nothing.
+    fn backdrop_palette(&self) -> String {
+        let p = &self.palette;
+        if !p.light {
+            return String::new();
+        }
+        let (surface, text) = (p.foreground, p.background);
+        format!(
+            r#"
+[class*="metadetails-container-"],
+[class*="player-container-"] {{
+    --primary-background-color: {surface} !important;
+    --secondary-background-color: {surface} !important;
+    --modal-background-color: {deep} !important;
+    --primary-foreground-color: {text} !important;
+    --overlay-color: {overlay} !important;
+    color: {text} !important;
+    color-scheme: dark;
+}}
+"#,
+            deep = surface.mix(Rgb(0, 0, 0), 0.35),
+            overlay = text.alpha(0.08),
+        )
     }
 }
 
@@ -260,17 +296,19 @@ pub fn read_look() -> Look {
 
     Look {
         palette: Palette::from_colors(&colors),
-        radius: hyprland_rounding().unwrap_or(0),
+        radius: hyprland_option("decoration:rounding").unwrap_or(0),
+        border: hyprland_option("general:border_size").unwrap_or(2),
         font: monospace_font(),
     }
 }
 
-/// Hyprland's effective window rounding, which themes and personal overrides
-/// can both set, so ask hyprctl rather than reading its config.
-fn hyprland_rounding() -> Option<u32> {
+/// A Hyprland option's effective value (window rounding, border width), which
+/// themes and personal overrides can both set, so ask hyprctl rather than
+/// reading its config.
+fn hyprland_option(name: &str) -> Option<u32> {
     std::env::var_os("HYPRLAND_INSTANCE_SIGNATURE")?;
     let output = Command::new("hyprctl")
-        .args(["-j", "getoption", "decoration:rounding"])
+        .args(["-j", "getoption", name])
         .output()
         .ok()?;
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).ok()?;
@@ -334,6 +372,7 @@ red = "#ff2e63"
         let look = Look {
             palette: Palette::from_colors(&parse_colors(NETRUNNER)),
             radius: 6,
+            border: 2,
             font: Some("JetBrainsMono Nerd Font".into()),
         };
         let css = look.stylesheet();
@@ -352,6 +391,18 @@ red = "#ff2e63"
         assert_eq!(palette.green.readable_text(&palette), palette.background);
         // And the light foreground on a dark blue.
         assert_eq!(Rgb(0x12, 0x45, 0xa6).readable_text(&palette), palette.foreground);
+    }
+
+    #[test]
+    fn light_themes_keep_backdrop_pages_dark() {
+        let latte = "mode = \"light\"\nbackground = \"#eff1f5\"\nforeground = \"#4c4f69\"\naccent = \"#1e66f5\"\n";
+        let light = Look { palette: Palette::from_colors(&parse_colors(latte)), ..Look::default() };
+        let css = light.stylesheet();
+        // Inside the title page, the surface is the theme's dark text color.
+        assert!(css.contains("[class*=\"metadetails-container-\"]"));
+        assert!(css.contains("--primary-background-color: #4c4f69 !important;\n    --secondary"));
+        // A dark theme has no such override.
+        assert!(!Look::default().stylesheet().contains("metadetails-container"));
     }
 
     #[test]

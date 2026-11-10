@@ -156,3 +156,26 @@ img[data-omatrimio-art="avatar"] {
         height: 3px !important;
     }
 }
+
+/* --- Cards: bordered like Hyprland's windows. A hairline at rest, like an
+ *     inactive window, and the accent at the window border's width when
+ *     hovered or focused, in place of stremio-web's thick white frame. --- */
+
+[class*="meta-item-container-"] [class*="poster-container-"] {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary-foreground-color) 14%, transparent) !important;
+    transition: box-shadow 0.12s ease-out !important;
+}
+
+[class*="meta-item-container-"]:is(:focus-within, .active, .hovered, .selected) [class*="poster-container-"] {
+    box-shadow: 0 0 0 var(--omatrimio-border) var(--primary-accent-color) !important;
+}
+
+/* --- Settings: under the web app's and server's versions, which are
+ *     Stremio's and stay as they are, say what this app is. --- */
+
+[class*="version-info-label-"]:last-child::after {
+    content: var(--omatrimio-credit) !important;
+    display: block !important;
+    margin-top: 1rem !important;
+    white-space: normal !important;
+}
