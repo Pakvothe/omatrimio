@@ -1,5 +1,6 @@
 mod app;
 mod config;
+mod gpu;
 mod server;
 mod utils;
 
@@ -49,6 +50,21 @@ fn main() -> ExitCode {
     // spawned, so there is no concurrent access to the environment.
     if env::var_os("GSK_RENDERER").is_none() {
         unsafe { env::set_var("GSK_RENDERER", "gl") };
+    }
+
+    // On a virtual GPU, WebKit's GPU rasterization makes the board's posters
+    // flicker, so draw the web UI on the CPU there. Video still goes through GL.
+    // OMATRIMIO_CPU_RENDERING=1 or =0 forces either way.
+    if env::var_os("WEBKIT_SKIA_ENABLE_CPU_RENDERING").is_none() {
+        let cpu_rendering = match env::var("OMATRIMIO_CPU_RENDERING").as_deref() {
+            Ok("1") => true,
+            Ok("0") => false,
+            _ => gpu::only_virtual_gpus(),
+        };
+        if cpu_rendering {
+            // SAFETY: still before any other thread exists, as above.
+            unsafe { env::set_var("WEBKIT_SKIA_ENABLE_CPU_RENDERING", "1") };
+        }
     }
 
     tracing_subscriber::fmt::init();
