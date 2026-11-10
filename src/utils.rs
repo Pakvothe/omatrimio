@@ -42,7 +42,7 @@ pub async fn download_file(file_name: &str, data: String) -> Result<String> {
 
     let out_dir = dirs::download_dir()
         .ok_or_else(|| anyhow!("Failed to get download dir"))?
-        .join("Stremio");
+        .join("omatrimio");
 
     fs::create_dir_all(&out_dir)
         .await

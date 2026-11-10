@@ -11,10 +11,11 @@ use std::{env, fs, ptr};
 use clap::Parser;
 use gtk::glib::{ExitCode, object::ObjectExt};
 use tokio::runtime::Runtime;
+use tracing::error;
 
 use crate::{
     app::Application,
-    config::{DATA_DIR, GETTEXT_DIR_FLATPAK, GETTEXT_DOMAIN, STARTUP_URL},
+    config::{DATA_DIR, FALLBACK_URL, GETTEXT_DIR_FLATPAK, GETTEXT_DOMAIN, STARTUP_URL},
     server::Server,
 };
 
@@ -80,8 +81,8 @@ fn main() -> ExitCode {
     let gettext_dir = match env::var("FLATPAK_ID") {
         Ok(_) => GETTEXT_DIR_FLATPAK,
         // GETTEXT_DIR is where build.rs writes the catalogs. A system package installs them
-        // elsewhere and sets STREMIO_LOCALEDIR (e.g. /usr/share/locale) at build time.
-        Err(_) => option_env!("STREMIO_LOCALEDIR").unwrap_or(env!("GETTEXT_DIR")),
+        // elsewhere and sets OMATRIMIO_LOCALEDIR (e.g. /usr/share/locale) at build time.
+        Err(_) => option_env!("OMATRIMIO_LOCALEDIR").unwrap_or(env!("GETTEXT_DIR")),
     };
 
     gettextrs::bindtextdomain(GETTEXT_DOMAIN, gettext_dir).expect("Failed to bind text domain");
@@ -100,12 +101,24 @@ fn main() -> ExitCode {
 
     let args = Args::parse();
 
-    let mut server = Server::new();
-    server.start(args.dev).expect("Failed to start server");
+    // The web UI is loaded through the streaming server's proxy. Without the
+    // server (no network on first run, no Node.js) the app still opens, on
+    // the web UI directly, which says itself that streaming is unavailable.
+    let server = Server::locate(&data_dir).and_then(|mut server| {
+        server.start(args.dev)?;
+        Ok(server)
+    });
+    let startup_url = match (&server, args.url.as_str()) {
+        (Err(error), STARTUP_URL) => {
+            error!("Starting without the streaming server: {error:#}");
+            FALLBACK_URL.to_string()
+        }
+        _ => args.url,
+    };
 
     let app = Application::new();
     app.set_property("dev-mode", args.dev);
-    app.set_property("startup-url", args.url);
+    app.set_property("startup-url", startup_url);
     app.set_property("decorations", !args.no_window_decorations);
 
     let runtime = Runtime::new().expect("Failed to create Tokio runtime");

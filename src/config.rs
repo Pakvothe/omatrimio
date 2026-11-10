@@ -1,7 +1,8 @@
-pub const DATA_DIR: &str = "stremio";
+pub const DATA_DIR: &str = "omatrimio";
 
-pub const GETTEXT_DOMAIN: &str = "stremio";
+pub const GETTEXT_DOMAIN: &str = "omatrimio";
 pub const GETTEXT_DIR_FLATPAK: &str = "/app/share/locale";
 
 pub const STARTUP_URL: &str = "http://127.0.0.1:11470/proxy/d=https%3A%2F%2Fweb.stremio.com/";
+pub const FALLBACK_URL: &str = "https://web.stremio.com/";
 pub const IPC_KEY: &str = "LINUX";

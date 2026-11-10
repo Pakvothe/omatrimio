@@ -1,3 +1,5 @@
 /target
 /vendor
-.flatpak-builder
+/pkgbuild/pkg/
+/pkgbuild/src/
+*.pkg.tar.*

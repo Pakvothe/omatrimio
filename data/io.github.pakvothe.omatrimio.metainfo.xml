@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+    <id>io.github.pakvothe.omatrimio</id>
+    <name>omatrimio</name>
+    <summary>A Stremio-compatible media center with the Omarchy look</summary>
+    <description>
+        <p>omatrimio marries Stremio and Omarchy: Stremio's catalogs, addons, library, and player, following the Omarchy theme live, with Omarchy's icons, corners, and font, and no header bar.</p>
+        <p>omatrimio is an unofficial, community-made client. It is not affiliated with, endorsed by, or supported by Stremio or Smart Code OOD. It is a fork of stremio-linux-shell and loads the Stremio web app.</p>
+    </description>
+    <developer id="io.github.pakvothe">
+        <name>omatrimio contributors</name>
+    </developer>
+    <metadata_license>CC0-1.0</metadata_license>
+    <project_license>GPL-3.0-only</project_license>
+    <url type="homepage">https://github.com/Pakvothe/omatrimio</url>
+    <url type="bugtracker">https://github.com/Pakvothe/omatrimio/issues</url>
+    <translation type="gettext">omatrimio</translation>
+    <launchable type="desktop-id">io.github.pakvothe.omatrimio.desktop</launchable>
+    <content_rating type="oars-1.1" />
+</component>

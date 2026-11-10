@@ -1,0 +1,29 @@
+pkgname=omatrimio
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='A Stremio-compatible media center with the Omarchy look'
+arch=('x86_64' 'aarch64')
+url='https://github.com/Pakvothe/omatrimio'
+license=('GPL-3.0-only')
+# nodejs runs Stremio's streaming server, which omatrimio downloads on first
+# run (it is Stremio's closed-source program and is not part of this package).
+depends=('gtk4' 'libadwaita' 'webkitgtk-6.0' 'mpv' 'libepoxy' 'openssl' 'nodejs' 'curl')
+makedepends=('cargo' 'gettext')
+optdepends=('xdg-desktop-portal-impl: file pickers and keeping the screen awake')
+source=()
+sha256sums=()
+
+build() {
+  cd "$startdir/.."
+  PREFIX=/usr ./bin/build
+}
+
+check() {
+  cd "$startdir/.."
+  ./bin/test
+}
+
+package() {
+  cd "$startdir/.."
+  SKIP_BUILD=1 PREFIX=/usr DESTDIR="$pkgdir" ./bin/install
+}

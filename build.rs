@@ -2,8 +2,8 @@ use std::{fs, path::Path, process::Command};
 
 use anyhow::Result;
 
-const APP_ID: &str = "com.stremio.Stremio";
-const GETTEXT_DOMAIN: &str = "stremio";
+const APP_ID: &str = "io.github.pakvothe.omatrimio";
+const GETTEXT_DOMAIN: &str = "omatrimio";
 const GETTEXT_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/po");
 const DATA_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/data");
 

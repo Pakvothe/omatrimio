@@ -1,0 +1,33 @@
+#!/bin/sh
+# Installs omatrimio for this user under PREFIX (default ~/.local), with no
+# root needed, so it shows up in the app launcher. DESTDIR stages the files
+# for a package instead (see pkgbuild/PKGBUILD).
+set -eu
+
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+PREFIX="${PREFIX:-$HOME/.local}"
+DESTDIR="${DESTDIR:-}"
+ID=io.github.pakvothe.omatrimio
+
+[ -n "${SKIP_BUILD:-}" ] || PREFIX="$PREFIX" "$ROOT/bin/build"
+
+cd "$ROOT"
+install -Dm755 target/release/omatrimio "$DESTDIR$PREFIX/bin/omatrimio"
+install -Dm644 "data/$ID.desktop" "$DESTDIR$PREFIX/share/applications/$ID.desktop"
+install -Dm644 "data/$ID.metainfo.xml" "$DESTDIR$PREFIX/share/metainfo/$ID.metainfo.xml"
+install -Dm644 "data/$ID.gschema.xml" "$DESTDIR$PREFIX/share/glib-2.0/schemas/$ID.gschema.xml"
+install -Dm644 data/omatrimio.svg "$DESTDIR$PREFIX/share/icons/hicolor/scalable/apps/omatrimio.svg"
+install -Dm644 data/omatrimio.1 "$DESTDIR$PREFIX/share/man/man1/omatrimio.1"
+install -Dm644 LICENSE "$DESTDIR$PREFIX/share/licenses/omatrimio/LICENSE"
+for catalog in target/locale/*/LC_MESSAGES/omatrimio.mo; do
+    language="$(basename "$(dirname "$(dirname "$catalog")")")"
+    install -Dm644 "$catalog" "$DESTDIR$PREFIX/share/locale/$language/LC_MESSAGES/omatrimio.mo"
+done
+
+# A package's install hooks do this; a user install has to do it itself.
+if [ -z "$DESTDIR" ]; then
+    glib-compile-schemas "$PREFIX/share/glib-2.0/schemas"
+    update-desktop-database "$PREFIX/share/applications" 2>/dev/null || true
+    gtk-update-icon-cache -q -t "$PREFIX/share/icons/hicolor" 2>/dev/null || true
+    echo "Installed omatrimio to $PREFIX. Find it in the app launcher."
+fi

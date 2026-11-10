@@ -1,0 +1,8 @@
+#!/bin/sh
+# Runs the build from the source tree, without installing it.
+set -eu
+
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+cd "$ROOT"
+[ -x target/release/omatrimio ] || "$ROOT/bin/build"
+GSETTINGS_SCHEMA_DIR="$ROOT/target/schemas" exec target/release/omatrimio "$@"

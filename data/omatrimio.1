@@ -1,0 +1,66 @@
+.TH OMATRIMIO 1 "2026-11-10" "omatrimio" "User Commands"
+.SH NAME
+omatrimio \- a Stremio-compatible media center with the Omarchy look
+.SH SYNOPSIS
+.B omatrimio
+[\fIOPTIONS\fR] [\fIURI\fR]
+.SH DESCRIPTION
+.B omatrimio
+is a GTK4 desktop application that embeds the Stremio web client (via
+WebKitGTK6) beside a local streaming server and an mpv player, and restyles
+it to follow the Omarchy desktop: the current theme's colors, the desktop
+font, Hyprland's window rounding, and Omarchy's icon style.
+.PP
+It is an unofficial fork of stremio-linux-shell, not affiliated with Stremio
+or Smart Code OOD.
+.PP
+The streaming server is Stremio's own program. On first run it is downloaded
+from Stremio's site, checked against a pinned checksum, and kept in the data
+directory. It is run with
+.BR node .
+.SH OPTIONS
+.TP
+.BR \-d ", " \-\-dev
+Open the WebKit developer tools on startup.
+.TP
+.BR \-u ", " \-\-url =\fIURL\fR
+Set the startup URL loaded in the embedded browser view.
+.TP
+.BR \-n ", " \-\-no\-window\-decorations
+Hide the header bar. This is already the default; the header can be turned
+back on in the preferences.
+.TP
+.BR \-h ", " \-\-help
+Print a short help summary and exit.
+.TP
+.BR \-V ", " \-\-version
+Print the version number and exit.
+.SH ARGUMENTS
+.TP
+.I URI
+A stremio:// link or media file to open.
+.SH ENVIRONMENT
+.TP
+.B SERVER_PATH
+Run this streaming server script instead of the downloaded one.
+.TP
+.B OMATRIMIO_CPU_RENDERING
+Set to 1 or 0 to force drawing the interface on the CPU or the GPU. By
+default the CPU is used when every display adapter is virtual.
+.TP
+.B OMATRIMIO_DEBUG
+Print the web page's console to the terminal.
+.SH FILES
+.TP
+.I ~/.local/share/omatrimio
+Web storage (the signed-in account) and the streaming server.
+.TP
+.I ~/.local/state/omarchy/current/theme/colors.toml
+The Omarchy theme the app follows.
+.SH KEYS
+.TP
+.B Ctrl+,
+Preferences.
+.TP
+.B Ctrl+Q
+Quit.

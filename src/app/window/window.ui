@@ -7,7 +7,7 @@
                 <attribute name="action">app.show-preferences</attribute>
             </item>
             <item>
-                <attribute name="label" translatable="yes">_About Stremio</attribute>
+                <attribute name="label" translatable="yes">_About omatrimio</attribute>
                 <attribute name="action">app.show-about</attribute>
             </item>
         </section>

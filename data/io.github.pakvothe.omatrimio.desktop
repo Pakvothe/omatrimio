@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=omatrimio
+GenericName=Media Center
+GenericName[es]=Centro multimedia
+Comment=A Stremio-compatible media center with the Omarchy look
+Comment[es]=Un centro multimedia compatible con Stremio, con el estilo de Omarchy
+Icon=omatrimio
+Exec=omatrimio %u
+Terminal=false
+Categories=AudioVideo;Video;Player;
+Keywords=Stremio;Movies;Series;Stream;Media;
+MimeType=x-scheme-handler/stremio;
+StartupNotify=true
+StartupWMClass=io.github.pakvothe.omatrimio

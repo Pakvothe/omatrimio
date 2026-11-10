@@ -9,8 +9,8 @@ msgstr "Menu principal"
 msgid "_Preferences"
 msgstr "_Préférences"
 
-msgid "_About Stremio"
-msgstr "_À propos de Stremio"
+msgid "_About omatrimio"
+msgstr "_À propos de omatrimio"
 
 msgid "Show"
 msgstr "Afficher"

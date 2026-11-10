@@ -86,6 +86,7 @@ pub fn avatar(background: Rgb, figure: Rgb) -> String {
 
 /// The app icon: Omarchy's dark tile with the mark in Omarchy yellow, as
 /// Omacut and the other Omarchy apps draw theirs.
+#[cfg_attr(not(test), allow(dead_code))] // rendered into data/ by a test
 pub fn app_icon() -> String {
     format!(
         "<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'>\
@@ -97,6 +98,17 @@ pub fn app_icon() -> String {
          <rect x='16' y='16' width='480' height='480' rx='112' fill='url(#tile)'/>\
          <g transform='translate(256 256) scale(1.2) translate(-256 -256)'>{}</g></svg>",
         mark_paths("url(#ring)", "#f4f4f5")
+    )
+}
+
+/// The mark in plain white, for the system tray, which wants a symbolic
+/// icon. data/omatrimio-symbolic.png is this at 32 pixels:
+/// `rsvg-convert -w 32 -h 32 data/omatrimio-symbolic.svg -o data/omatrimio-symbolic.png`
+#[cfg_attr(not(test), allow(dead_code))] // rendered into data/ by a test
+pub fn symbolic() -> String {
+    format!(
+        "<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='116 116 280 280'>{}</svg>",
+        mark_paths("#ffffff", "#ffffff")
     )
 }
 
@@ -153,12 +165,17 @@ mod tests {
     /// `OMATRIMIO_WRITE_ICON=1 cargo test app_icon_file` rewrites it.
     #[test]
     fn app_icon_file_is_current() {
-        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/data/omatrimio.svg");
-        let icon = format!("{}\n", app_icon());
-        if std::env::var_os("OMATRIMIO_WRITE_ICON").is_some() {
-            std::fs::write(path, &icon).unwrap();
+        let files = [
+            (concat!(env!("CARGO_MANIFEST_DIR"), "/data/omatrimio.svg"), app_icon()),
+            (concat!(env!("CARGO_MANIFEST_DIR"), "/data/omatrimio-symbolic.svg"), symbolic()),
+        ];
+        for (path, svg) in files {
+            let svg = format!("{svg}\n");
+            if std::env::var_os("OMATRIMIO_WRITE_ICON").is_some() {
+                std::fs::write(path, &svg).unwrap();
+            }
+            assert_eq!(std::fs::read_to_string(path).unwrap_or_default(), svg);
         }
-        assert_eq!(std::fs::read_to_string(path).unwrap_or_default(), icon);
     }
 
     #[test]

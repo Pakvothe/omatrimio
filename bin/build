@@ -1,0 +1,12 @@
+#!/bin/sh
+# Builds target/release/omatrimio. PREFIX says where it will be installed, so
+# the binary looks for its translations there.
+set -eu
+
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+PREFIX="${PREFIX:-$HOME/.local}"
+
+cd "$ROOT"
+OMATRIMIO_LOCALEDIR="$PREFIX/share/locale" cargo build --release --locked
+
+echo "Built $ROOT/target/release/omatrimio"

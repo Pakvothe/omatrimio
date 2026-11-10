@@ -37,7 +37,7 @@ impl Discord {
     }
 
     pub fn set_activity(&self, details: String, state: String, image: Option<String>) {
-        let mut assets = Assets::new().large_text("Stremio");
+        let mut assets = Assets::new().large_text("omatrimio");
 
         if let Some(image) = image {
             assets = assets.large_image(image);
