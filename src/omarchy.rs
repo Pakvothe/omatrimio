@@ -183,6 +183,16 @@ body, body * {{
     font-family: {font}"TwemojiFlags", sans-serif !important;
 }}
 
+svg[data-omatrimio-icon] > path {{
+    display: none !important;
+}}
+
+svg[data-omatrimio-icon] > text {{
+    fill: currentColor;
+    font-family: {font}"Symbols Nerd Font", "JetBrainsMono Nerd Font" !important;
+    font-weight: normal !important;
+}}
+
 ::selection {{
     background-color: {selection} !important;
 }}
