@@ -1,3 +1,6 @@
+// Rewrites stremio-web's own style rules where variables can't reach:
+// corners, text on accents, and brand colors written by hand.
+//
 // Corners follow Hyprland's window rounding, like every Omarchy app.
 //
 // stremio-web rounds most surfaces with var(--border-radius), which the
@@ -96,6 +99,44 @@
         }
     };
 
+    // stremio-web still writes some of its brand's blue-violet by hand (page
+    // titles, modal backgrounds, a few highlights) instead of through the
+    // palette variables. Any fixed color in that hue range becomes the theme
+    // color playing the same role, keeping its transparency: text takes the
+    // foreground, dark surfaces the dark background, bright ones the accent.
+    const TINTED = ['color', 'fill', 'background-color', 'background-image', 'border-top-color',
+        'border-right-color', 'border-bottom-color', 'border-left-color', 'outline-color', 'box-shadow'];
+    const RGB = /rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\s*\)/g;
+
+    const isBrandTint = (r, g, b) => {
+        const max = Math.max(r, g, b), min = Math.min(r, g, b), delta = max - min;
+        if (delta < 12) return false; // a gray, black, or white
+        const lightness = (max + min) / 510;
+        const saturation = delta / (255 - Math.abs(max + min - 255));
+        let hue = max === r ? ((g - b) / delta) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4;
+        hue = (hue * 60 + 360) % 360;
+        return saturation >= 0.2 && hue >= 215 && hue <= 285 ? { lightness } : false;
+    };
+
+    const retint = (style) => {
+        for (const property of TINTED) {
+            const value = style.getPropertyValue(property);
+            if (!value || !value.includes('rgb')) continue;
+            const themed = value.replace(RGB, (match, r, g, b, alpha) => {
+                const tint = isBrandTint(+r, +g, +b);
+                if (!tint) return match;
+                const role = property === 'color' || property === 'fill'
+                    ? '--primary-foreground-color'
+                    : tint.lightness < 0.3 ? '--modal-background-color' : '--primary-accent-color';
+                const percent = Math.round((alpha === undefined ? 1 : +alpha) * 100);
+                return percent >= 100
+                    ? `var(${role})`
+                    : `color-mix(in srgb, var(${role}) ${percent}%, transparent)`;
+            });
+            if (themed !== value) style.setProperty(property, themed, style.getPropertyPriority(property));
+        }
+    };
+
     // `container` is the sheet or grouping rule (@media, @supports) holding
     // the rules, so added rules keep their conditions.
     const capRules = (rules, container) => {
@@ -106,6 +147,7 @@
             // so the browser reports it only on the shorthand.
             cap(rule.style, 'border-radius');
             for (const corner of CORNERS) cap(rule.style, corner);
+            retint(rule.style);
             if (rule.selectorText) textOnAccent(rule, container);
         }
     };
