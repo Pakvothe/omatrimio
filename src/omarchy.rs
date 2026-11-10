@@ -52,14 +52,24 @@ impl Rgb {
         (a.max(b) + 0.05) / (a.min(b) + 0.05)
     }
 
-    /// Whichever of the theme's own two text colors reads better on this
-    /// color, so text on a bright accent stays in the theme's palette rather
-    /// than going pure black or white.
+    /// The color for text on this color. The theme's own background or
+    /// foreground when one of them reads well (4.5:1, WCAG's bar for body
+    /// text), so text on an accent stays in the theme's palette; otherwise
+    /// whichever of those and pure black and white reads best. Rose Pine's
+    /// accent, for one, is too close to both of its text colors.
     fn readable_text(self, palette: &Palette) -> Rgb {
-        if self.contrast(palette.background) >= self.contrast(palette.foreground) {
-            palette.background
+        let best = |colors: &[Rgb]| {
+            colors
+                .iter()
+                .copied()
+                .max_by(|a, b| self.contrast(*a).total_cmp(&self.contrast(*b)))
+                .unwrap_or(Rgb(0, 0, 0))
+        };
+        let themed = best(&[palette.background, palette.foreground]);
+        if self.contrast(themed) >= 4.5 {
+            themed
         } else {
-            palette.foreground
+            best(&[palette.background, palette.foreground, Rgb(0, 0, 0), Rgb(255, 255, 255)])
         }
     }
 
@@ -243,8 +253,8 @@ svg[data-omatrimio-icon] > path[data-omatrimio-glyph] {{
 }
 
 impl Look {
-    /// The title page and the player put text over a photo or the video, so
-    /// they stay dark the way players do. On a light theme the palette is
+    /// The title page, its preview panel in Discover, and the player put text
+    /// over a photo or the video, so they stay dark the way players do. On a light theme the palette is
     /// swapped inside them: the theme's dark text color becomes the surface
     /// and its light background becomes the text. Dark themes need nothing.
     fn backdrop_palette(&self) -> String {
@@ -256,6 +266,7 @@ impl Look {
         format!(
             r#"
 [class*="metadetails-container-"],
+[class*="meta-preview-container-"],
 [class*="player-container-"] {{
     --primary-background-color: {surface} !important;
     --secondary-background-color: {surface} !important;
@@ -391,6 +402,16 @@ red = "#ff2e63"
         assert_eq!(palette.green.readable_text(&palette), palette.background);
         // And the light foreground on a dark blue.
         assert_eq!(Rgb(0x12, 0x45, 0xa6).readable_text(&palette), palette.foreground);
+    }
+
+    #[test]
+    fn text_on_a_weak_accent_falls_back_to_black_or_white() {
+        // Rose Pine: neither of its text colors reaches 4.5:1 on the accent.
+        let colors = "mode = \"light\"\nbackground = \"#faf4ed\"\nforeground = \"#575279\"\naccent = \"#56949f\"\n";
+        let palette = Palette::from_colors(&parse_colors(colors));
+        let text = palette.accent.readable_text(&palette);
+        assert!(text == Rgb(0, 0, 0) || text == Rgb(255, 255, 255));
+        assert!(palette.accent.contrast(text) > palette.accent.contrast(palette.background));
     }
 
     #[test]

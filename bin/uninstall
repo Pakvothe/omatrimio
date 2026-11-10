@@ -1,0 +1,24 @@
+#!/bin/sh
+# Removes what bin/install put under PREFIX (default ~/.local). Your account
+# and the downloaded streaming server in ~/.local/share/omatrimio are kept;
+# delete that directory yourself to remove them too.
+set -eu
+
+PREFIX="${PREFIX:-$HOME/.local}"
+ID=io.github.pakvothe.omatrimio
+
+rm -f "$PREFIX/bin/omatrimio" \
+    "$PREFIX/share/applications/$ID.desktop" \
+    "$PREFIX/share/metainfo/$ID.metainfo.xml" \
+    "$PREFIX/share/glib-2.0/schemas/$ID.gschema.xml" \
+    "$PREFIX/share/icons/hicolor/scalable/apps/omatrimio.svg" \
+    "$PREFIX/share/man/man1/omatrimio.1" \
+    "$PREFIX"/share/locale/*/LC_MESSAGES/omatrimio.mo
+rm -rf "$PREFIX/share/licenses/omatrimio"
+
+if [ -d "$PREFIX/share/glib-2.0/schemas" ]; then
+    glib-compile-schemas "$PREFIX/share/glib-2.0/schemas"
+fi
+update-desktop-database "$PREFIX/share/applications" 2>/dev/null || true
+
+echo "Removed omatrimio from $PREFIX. Your data is still in ~/.local/share/omatrimio."

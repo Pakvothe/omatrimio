@@ -9,6 +9,27 @@ PREFIX="${PREFIX:-$HOME/.local}"
 DESTDIR="${DESTDIR:-}"
 ID=io.github.pakvothe.omatrimio
 
+# Say what's missing up front, with the command that adds it, rather than
+# failing halfway through a build. Skipped when staging a package: makepkg
+# has already checked the PKGBUILD's dependencies.
+PACKAGES="gtk4 libadwaita webkitgtk-6.0 mpv libepoxy openssl nodejs curl rust gettext"
+if [ -z "$DESTDIR" ] && command -v pacman >/dev/null 2>&1; then
+    missing=""
+    for package in $PACKAGES; do
+        pacman -Q "$package" >/dev/null 2>&1 || missing="$missing $package"
+    done
+    if [ -n "$missing" ]; then
+        if command -v omarchy-pkg-add >/dev/null 2>&1; then
+            echo "omatrimio needs these packages:$missing"
+            echo "Install them with:  omarchy-pkg-add$missing"
+        else
+            echo "omatrimio needs these packages:$missing"
+            echo "Install them with:  sudo pacman -S --needed$missing"
+        fi
+        exit 1
+    fi
+fi
+
 [ -n "${SKIP_BUILD:-}" ] || PREFIX="$PREFIX" "$ROOT/bin/build"
 
 cd "$ROOT"
