@@ -65,25 +65,34 @@ img[data-omatrimio-art="avatar"] {
     }
 }
 
-/* --- Side bar: icons only, even squares, the selected tab marked by the
+/* --- Side bar: icons only, in even cells, the selected tab marked by the
  *     accent and a bar on the edge, like Hyprland's active border. The
- *     label stays as the button's tooltip. --- */
+ *     label stays as the button's tooltip. Hovering only brightens the icon:
+ *     no background, so nothing shifts or flashes. --- */
 
 [class*="vertical-nav-bar-container-"] {
+    align-items: stretch !important;
     gap: 0.35rem !important;
     padding: 0.75rem 0 !important;
 }
 
-/* Each button spans the column: a bigger target, a full-row hover, and room
- * for the bar on the edge, since the scrolling column clips anything
- * outside its buttons. */
+/* Each button spans the column, so its icon is centered in the column and
+ * the edge bar fits inside it (the scrolling column clips anything outside
+ * its buttons). */
 [class*="vertical-nav-bar-container-"] > [class*="nav-tab-button-container-"] {
     position: relative !important;
+    display: flex !important;
     flex: none !important;
+    align-items: center !important;
+    justify-content: center !important;
     width: 100% !important;
     height: 3.25rem !important;
     min-height: 3.25rem !important;
+    margin: 0 !important;
+    padding: 0 !important;
     border-radius: 0 !important;
+    background-color: transparent !important;
+    scale: 1 !important;
 }
 
 [class*="nav-tab-button-container-"] > [class*="label-"] {
@@ -92,8 +101,10 @@ img[data-omatrimio-art="avatar"] {
 
 [class*="nav-tab-button-container-"] > [class*="icon-"],
 [class*="nav-tab-button-container-"] > [class*="logo-"] {
-    width: 1.6rem !important;
-    height: 1.6rem !important;
+    flex: none !important;
+    display: block !important;
+    width: 1.75rem !important;
+    height: 1.75rem !important;
     margin: 0 !important;
     opacity: 0.45 !important;
     transition: opacity 0.12s ease-out !important;
@@ -101,7 +112,7 @@ img[data-omatrimio-art="avatar"] {
 
 [class*="nav-tab-button-container-"]:hover > [class*="icon-"],
 [class*="nav-tab-button-container-"]:hover > [class*="logo-"] {
-    opacity: 0.85 !important;
+    opacity: 0.9 !important;
 }
 
 [class*="nav-tab-button-container-"].selected > [class*="icon-"],
@@ -119,21 +130,26 @@ img[data-omatrimio-art="avatar"] {
     background-color: var(--primary-accent-color) !important;
 }
 
-/* Narrow windows turn the side bar into a bottom row; the bar moves under
- * the selected icon. */
+/* Narrow windows turn the side bar into a bottom row: equal cells across
+ * the width, each icon centered in its cell, the bar under the selected one. */
 @media only screen and (max-width: 640px) {
     [class*="vertical-nav-bar-container-"] {
-        justify-content: space-around !important;
-        padding: 0 0.5rem !important;
+        align-items: stretch !important;
+        justify-content: stretch !important;
+        gap: 0 !important;
+        padding: 0 !important;
     }
 
     [class*="vertical-nav-bar-container-"] > [class*="nav-tab-button-container-"] {
-        width: 3.25rem !important;
+        flex: 1 1 0 !important;
+        width: auto !important;
+        min-width: 0 !important;
+        height: 100% !important;
     }
 
     [class*="vertical-nav-bar-container-"] > [class*="nav-tab-button-container-"].selected::before {
-        left: 25% !important;
-        right: 25% !important;
+        left: 30% !important;
+        right: 30% !important;
         top: auto !important;
         bottom: 0 !important;
         width: auto !important;
