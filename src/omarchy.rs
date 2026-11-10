@@ -4,6 +4,14 @@
 //! stremio-web takes its whole palette from CSS custom properties on `:root`
 //! (src/App/styles.less), so overriding those restyles the app without
 //! touching its code, and keeps working as web.stremio.com updates.
+//!
+//! Only variables are overridden, never `body`'s background: the video is
+//! drawn underneath the web view, and the player clears that background to
+//! show it. The page's gradient runs between the two background variables,
+//! so setting both to the theme background is what makes it flat.
+//!
+//! Omarchy apps use one accent, so stremio-web's secondary accent, its green
+//! "action" color for play and install, becomes the theme accent too.
 
 use std::{collections::HashMap, fmt, fs, path::PathBuf, process::Command};
 
@@ -33,9 +41,21 @@ impl Rgb {
         0.2126 * linear(self.0) + 0.7152 * linear(self.1) + 0.0722 * linear(self.2)
     }
 
-    /// Black or white, whichever reads on this color.
-    fn readable_text(self) -> Rgb {
-        if self.luminance() > 0.179 { Rgb(0, 0, 0) } else { Rgb(255, 255, 255) }
+    /// WCAG contrast ratio between two colors, from 1 to 21.
+    fn contrast(self, other: Rgb) -> f64 {
+        let (a, b) = (self.luminance(), other.luminance());
+        (a.max(b) + 0.05) / (a.min(b) + 0.05)
+    }
+
+    /// Whichever of the theme's own two text colors reads better on this
+    /// color, so text on a bright accent stays in the theme's palette rather
+    /// than going pure black or white.
+    fn readable_text(self, palette: &Palette) -> Rgb {
+        if self.contrast(palette.background) >= self.contrast(palette.foreground) {
+            palette.background
+        } else {
+            palette.foreground
+        }
     }
 
     fn mix(self, other: Rgb, amount: f32) -> Rgb {
@@ -137,12 +157,18 @@ impl Look {
         format!(
             r#":root {{
     --primary-background-color: {background} !important;
-    --secondary-background-color: {lighter} !important;
+    --secondary-background-color: {background} !important;
     --modal-background-color: {dark} !important;
     --primary-foreground-color: {foreground} !important;
     --secondary-foreground-color: {on_accent} !important;
+    --on-primary-accent-color: {on_accent} !important;
+    --on-secondary-accent-color: {on_accent} !important;
+    --on-tertiary-accent-color: {on_yellow} !important;
+    --on-quaternary-accent-color: {on_blue} !important;
+    --on-warning-accent-color: {on_orange} !important;
+    --on-danger-accent-color: {on_red} !important;
     --primary-accent-color: {accent} !important;
-    --secondary-accent-color: {green} !important;
+    --secondary-accent-color: {accent} !important;
     --tertiary-accent-color: {yellow} !important;
     --quaternary-accent-color: {blue} !important;
     --warning-accent-color: {orange} !important;
@@ -151,10 +177,6 @@ impl Look {
     --outer-glow: 0px 0px 15px {glow} !important;
     --border-radius: {radius}px !important;
     color-scheme: {scheme};
-}}
-
-body {{
-    background: var(--primary-background-color) !important;
 }}
 
 body, body * {{
@@ -166,12 +188,14 @@ body, body * {{
 }}
 "#,
             background = p.background,
-            lighter = p.lighter_background,
             dark = p.dark_background,
             foreground = p.foreground,
-            on_accent = p.accent.readable_text(),
+            on_accent = p.accent.readable_text(p),
+            on_yellow = p.yellow.readable_text(p),
+            on_blue = p.blue.readable_text(p),
+            on_orange = p.orange.readable_text(p),
+            on_red = p.red.readable_text(p),
             accent = p.accent,
-            green = p.green,
             yellow = p.yellow,
             blue = p.blue,
             orange = p.orange,
@@ -280,9 +304,19 @@ red = "#ff2e63"
         let css = look.stylesheet();
         assert!(css.contains("--primary-accent-color: #00e5ff !important;"));
         assert!(css.contains("--border-radius: 6px !important;"));
-        // Dark text on the bright cyan accent.
-        assert!(css.contains("--secondary-foreground-color: #000000 !important;"));
+        // Stremio's green action color follows the theme's single accent.
+        assert!(css.contains("--secondary-accent-color: #00e5ff !important;"));
+        // The theme's dark background as text on the bright cyan accent.
+        assert!(css.contains("--secondary-foreground-color: #05080d !important;"));
         assert!(css.contains("font-family: \"JetBrainsMono Nerd Font\", "));
+    }
+
+    #[test]
+    fn text_on_bright_green_uses_the_dark_background() {
+        let palette = Palette::from_colors(&parse_colors(&format!("{NETRUNNER}\ngreen = \"#39ff88\"\n")));
+        assert_eq!(palette.green.readable_text(&palette), palette.background);
+        // And the light foreground on a dark blue.
+        assert_eq!(Rgb(0x12, 0x45, 0xa6).readable_text(&palette), palette.foreground);
     }
 
     #[test]

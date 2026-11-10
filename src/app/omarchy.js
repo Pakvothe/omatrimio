@@ -50,14 +50,63 @@
         }
     };
 
-    const capRules = (rules) => {
-        for (const rule of rules) {
-            if (rule.cssRules) capRules(rule.cssRules);
+    // Buttons painted with an accent keep stremio-web's white text, which
+    // vanishes on a bright accent (Netrunner's neon green). Wherever a rule
+    // paints a background with an accent, add a rule that sets the text and
+    // icons inside to the color the stylesheet picked to read on it.
+    const ACCENT_BACKGROUND = /var\(--((?:primary|secondary|tertiary|quaternary|warning|danger)-accent-color)\)/;
+
+    // The last compound selector names a class like `play-icon-background-Uazjh`.
+    const isBackgroundLayer = (selector) => {
+        const last = selector.split(/[\s>+~]+/).pop();
+        return /\.[\w-]*background[\w-]*/.test(last);
+    };
+
+    // `.a .layer .background` -> `.a .layer`
+    const layerContainer = (selector) => selector.replace(/\s*[>+~]?\s*[^\s>+~]+$/, '');
+
+    const textOnAccent = (rule, container) => {
+        const background =
+            rule.style.getPropertyValue('background-color') || rule.style.getPropertyValue('background');
+        const accent = background.match(ACCENT_BACKGROUND);
+        if (!accent) return;
+        const selectors = rule.selectorText
+            .split(',')
+            .map((selector) => selector.trim())
+            .filter((selector) => !selector.includes('::'));
+        if (selectors.length === 0) return;
+        const targets = selectors
+            .flatMap((selector) =>
+                // A background layer sits behind sibling layers (the poster's
+                // play button is a background, a ring, and the icon on top,
+                // with the icon first in the DOM), so everything in the
+                // layer's container gets the readable color too.
+                isBackgroundLayer(selector)
+                    ? [selector, `${selector} *`, `${layerContainer(selector)} *`]
+                    : [selector, `${selector} *`],
+            )
+            .join(', ');
+        try {
+            container.insertRule(
+                `${targets} { color: var(--on-${accent[1]}) !important; }`,
+                container.cssRules.length,
+            );
+        } catch {
+            // A selector this engine can't parse; leave that rule as it was.
+        }
+    };
+
+    // `container` is the sheet or grouping rule (@media, @supports) holding
+    // the rules, so added rules keep their conditions.
+    const capRules = (rules, container) => {
+        for (const rule of Array.from(rules)) {
+            if (rule.cssRules) capRules(rule.cssRules, rule);
             if (!rule.style) continue;
             // A shorthand set from a variable can't be split into corners,
             // so the browser reports it only on the shorthand.
             cap(rule.style, 'border-radius');
             for (const corner of CORNERS) cap(rule.style, corner);
+            if (rule.selectorText) textOnAccent(rule, container);
         }
     };
 
@@ -65,9 +114,9 @@
         for (const sheet of document.styleSheets) {
             if (done.has(sheet)) continue;
             try {
-                capRules(sheet.cssRules);
+                capRules(sheet.cssRules, sheet);
                 done.add(sheet);
-                console.debug(`omatrimio: capped corners in ${sheet.href || 'inline style'} (${sheet.cssRules.length} rules)`);
+                console.debug(`omatrimio: restyled ${sheet.href || 'inline style'} (${sheet.cssRules.length} rules)`);
             } catch (error) {
                 console.debug(`omatrimio: skipped ${sheet.href}: ${error}`);
                 // A stylesheet from another origin can't be read; leave it be.
