@@ -22,7 +22,9 @@
             <summary>Hright of the window</summary>
         </key>
         <key name="no-window-decorations" type="b">
-            <default>false</default>
+            <!-- Omarchy apps have no header bar: Hyprland draws the border,
+                 and its actions are on the keyboard (Ctrl+, opens preferences). -->
+            <default>true</default>
             <summary>Removes window decorations</summary>
         </key>
         <key name="kde-theme" type="b">
