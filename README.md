@@ -1,9 +1,11 @@
 # omatrimio
 
-Omarchy and Stremio, happily married. A media center that runs the Stremio
-web app, so your account, library, and addons are all there, and looks and
-behaves like an Omarchy app: it follows your theme live, uses your font and
-your window corners, and has no header bar.
+Stremio, at home on Omarchy.
+
+Stremio on Omarchy looks like a guest: its own purple, its own font, rounded
+corners, a header bar. omatrimio is the same Stremio (your account, your
+library, your addons, the same player) dressed as an Omarchy app. Switch
+your theme and it switches with you, while it's open.
 
 ![omatrimio browsing a catalog of public domain movies, in the Netrunner theme](docs/screenshots/netrunner.png)
 
@@ -14,15 +16,25 @@ your window corners, and has no header bar.
 > bring omatrimio's bugs [here](https://github.com/Pakvothe/omatrimio/issues),
 > not to Stremio's support.
 
-## What it does
+## Why
 
-- **Follows your theme, live.** Colors come from the current Omarchy theme
-  and change the moment you switch, with no restart. Every theme Omarchy
-  ships, light and dark, is checked for readable contrast.
+- **It belongs on your desktop.** An app that ignores your theme stands out
+  on a system where everything else follows it. omatrimio reads the same
+  theme files the rest of Omarchy does.
+- **It is still Stremio.** omatrimio doesn't reimplement anything. It runs
+  the Stremio web app and restyles it as it loads, so every feature works
+  and every Stremio update arrives on its own.
+- **No Flatpak.** It builds and installs like any native Arch app, on
+  `x86_64` and `aarch64`, and plays through the system's mpv.
+
+## What changes
+
+- **Your theme, live.** Colors come from the current Omarchy theme and
+  change the moment you switch, with no restart. Every theme Omarchy ships,
+  light and dark, is checked for readable contrast.
 - **Your font and your corners.** The desktop font, and Hyprland's window
   rounding on every surface: square on Omarchy's default.
-- **Omarchy's icons.** The Material Design set that Nerd Fonts carries, in
-  place of Stremio's.
+- **Omarchy's icons.** The Material Design set that Nerd Fonts carries.
 - **One accent.** Play, install, and every other action use the theme's
   accent, with text that stays readable on it.
 - **Cards bordered like windows.** A hairline at rest, and the accent at
@@ -30,16 +42,14 @@ your window corners, and has no header bar.
 - **No header bar.** Hyprland draws the border; the app is all content.
 - **A quiet side bar.** Icons only, in even rows, the current section marked
   by the accent. In a narrow window it becomes a row along the bottom.
-- **Everything Stremio does.** It is the Stremio web app underneath: sign
-  in, sync your library, install addons, play with mpv built in.
 
 ![The same screen in Tokyo Night, Gruvbox, and Catppuccin Latte](docs/screenshots/themes.png)
 
 ## Install
 
-omatrimio is for Omarchy, and builds for both `x86_64` and `aarch64`. So far
-it has been tested on `aarch64`; if it misbehaves on your machine, please
-[open an issue](https://github.com/Pakvothe/omatrimio/issues). From a terminal:
+omatrimio is for Omarchy. So far it has been tested on `aarch64`; if it
+misbehaves on your machine, please
+[open an issue](https://github.com/Pakvothe/omatrimio/issues).
 
 ```sh
 git clone https://github.com/Pakvothe/omatrimio
@@ -50,25 +60,10 @@ bin/install
 That builds omatrimio and installs it for your user under `~/.local`, with
 no root needed. If a package it needs is missing, it stops and prints the
 command that adds it. Then open **omatrimio** from the app launcher
-(`Super + Space`).
+(`Super + Space`) and sign in to your Stremio account.
 
-To build and install an Arch package instead:
-
-```sh
-cd pkgbuild
-makepkg -si
-```
-
-To remove a `bin/install` installation, run `bin/uninstall`.
-
-### The streaming server
-
-Torrents and transcoding are handled by Stremio's streaming server, which is
-Stremio's own closed-source program. omatrimio doesn't include it. The first
-time it runs, it downloads the server from Stremio's site (`dl.strem.io`),
-checks it against a pinned SHA-256, and keeps it in
-`~/.local/share/omatrimio`. It runs with Node.js. If it can't be downloaded,
-omatrimio still opens and the interface tells you streaming is unavailable.
+To build and install an Arch package instead, run `makepkg -si` in
+`pkgbuild/`. To remove a `bin/install` installation, run `bin/uninstall`.
 
 ## Hotkeys
 
@@ -91,6 +86,15 @@ A few environment variables are there for troubleshooting:
   CPU or the GPU. By default the CPU is used when the only display adapter is
   a virtual one, which fixes flickering posters in virtual machines.
 - `OMATRIMIO_DEBUG`: print the web page's console to the terminal.
+
+## The streaming server
+
+Torrents and transcoding are handled by Stremio's streaming server, which
+is Stremio's own program and isn't open source, so omatrimio doesn't
+include it. On first run omatrimio downloads it from Stremio's site
+(`dl.strem.io`), checks it against a pinned SHA-256, and keeps it in
+`~/.local/share/omatrimio`. It runs with Node.js. Without it omatrimio still
+opens, and the interface says streaming is unavailable.
 
 ## Addons and content
 
