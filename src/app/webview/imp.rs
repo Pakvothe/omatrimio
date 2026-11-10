@@ -39,6 +39,11 @@ impl ObjectImpl for WebView {
             settings.set_enable_webaudio(false);
             settings.set_javascript_can_access_clipboard(true);
 
+            // OMATRIMIO_DEBUG=1 prints the page's console to the terminal.
+            if std::env::var_os("OMATRIMIO_DEBUG").is_some() {
+                settings.set_enable_write_console_messages_to_stdout(true);
+            }
+
             // https://github.com/Stremio/stremio-linux-shell/issues/170
             if webkit::functions::major_version() == 2 && webkit::functions::minor_version() == 54 {
                 // Use TextureMapper instead of Skia for layer composition

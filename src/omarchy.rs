@@ -1,0 +1,294 @@
+//! The Omarchy look: the current theme's colors, Hyprland's window rounding,
+//! and the desktop font, turned into a stylesheet for Stremio's web UI.
+//!
+//! stremio-web takes its whole palette from CSS custom properties on `:root`
+//! (src/App/styles.less), so overriding those restyles the app without
+//! touching its code, and keeps working as web.stremio.com updates.
+
+use std::{collections::HashMap, fmt, fs, path::PathBuf, process::Command};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Rgb(pub u8, pub u8, pub u8);
+
+impl Rgb {
+    pub fn parse(text: &str) -> Option<Self> {
+        let hex = text.trim().strip_prefix('#')?;
+        if hex.len() != 6 || !hex.chars().all(|c| c.is_ascii_hexdigit()) {
+            return None;
+        }
+        let channel = |i: usize| u8::from_str_radix(&hex[i..i + 2], 16).ok();
+        Some(Self(channel(0)?, channel(2)?, channel(4)?))
+    }
+
+    fn alpha(self, alpha: f32) -> String {
+        format!("rgba({}, {}, {}, {alpha})", self.0, self.1, self.2)
+    }
+
+    /// WCAG relative luminance.
+    fn luminance(self) -> f64 {
+        let linear = |c: u8| {
+            let v = f64::from(c) / 255.0;
+            if v <= 0.04045 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) }
+        };
+        0.2126 * linear(self.0) + 0.7152 * linear(self.1) + 0.0722 * linear(self.2)
+    }
+
+    /// Black or white, whichever reads on this color.
+    fn readable_text(self) -> Rgb {
+        if self.luminance() > 0.179 { Rgb(0, 0, 0) } else { Rgb(255, 255, 255) }
+    }
+
+    fn mix(self, other: Rgb, amount: f32) -> Rgb {
+        let blend = |a: u8, b: u8| (f32::from(a) + (f32::from(b) - f32::from(a)) * amount).round() as u8;
+        Rgb(blend(self.0, other.0), blend(self.1, other.1), blend(self.2, other.2))
+    }
+}
+
+impl fmt::Display for Rgb {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "#{:02x}{:02x}{:02x}", self.0, self.1, self.2)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Palette {
+    pub light: bool,
+    pub accent: Rgb,
+    pub background: Rgb,
+    pub dark_background: Rgb,
+    pub lighter_background: Rgb,
+    pub foreground: Rgb,
+    pub green: Rgb,
+    pub yellow: Rgb,
+    pub blue: Rgb,
+    pub orange: Rgb,
+    pub red: Rgb,
+}
+
+impl Default for Palette {
+    /// Omarchy's default look, for when no theme is installed.
+    fn default() -> Self {
+        Self::from_colors(&HashMap::new())
+    }
+}
+
+impl Palette {
+    /// Older and hand-made themes leave keys out, so each one falls back to
+    /// something derived from the keys a theme always has.
+    pub fn from_colors(colors: &HashMap<String, String>) -> Self {
+        let get = |key: &str| colors.get(key).and_then(|value| Rgb::parse(value));
+        let light = colors.get("mode").is_some_and(|mode| mode == "light");
+
+        let background = get("background").unwrap_or(if light { Rgb(250, 250, 250) } else { Rgb(18, 18, 18) });
+        let foreground = get("foreground").unwrap_or(if light { Rgb(30, 30, 30) } else { Rgb(230, 230, 230) });
+        let accent = get("accent").or_else(|| get("color4")).unwrap_or(Rgb(0xff, 0xd6, 0x0a));
+
+        Self {
+            light,
+            accent,
+            background,
+            dark_background: get("dark_background").unwrap_or(background.mix(Rgb(0, 0, 0), 0.25)),
+            lighter_background: get("lighter_background").unwrap_or(background.mix(foreground, 0.08)),
+            foreground,
+            green: get("green").or_else(|| get("color2")).unwrap_or(Rgb(0x22, 0xb3, 0x65)),
+            yellow: get("yellow").or_else(|| get("color3")).unwrap_or(Rgb(0xf6, 0xc7, 0x00)),
+            blue: get("blue").or_else(|| get("color4")).unwrap_or(Rgb(0x12, 0x45, 0xa6)),
+            orange: get("orange").or_else(|| get("color3")).unwrap_or(Rgb(0xff, 0xa5, 0x00)),
+            red: get("red").or_else(|| get("color1")).unwrap_or(Rgb(0xdc, 0x26, 0x26)),
+        }
+    }
+}
+
+/// `key = "value"` lines of colors.toml. Omarchy's file is flat, so a TOML
+/// parser would only add a dependency.
+pub fn parse_colors(text: &str) -> HashMap<String, String> {
+    text.lines()
+        .filter(|line| !line.trim_start().starts_with('#'))
+        .filter_map(|line| {
+            let (key, value) = line.split_once('=')?;
+            let value = value.trim();
+            // Values are quoted and start with '#', so a trailing comment
+            // only begins after the closing quote.
+            let value = match value.chars().next() {
+                Some(quote @ ('"' | '\'')) => value[1..].split(quote).next()?,
+                _ => value.split(|c: char| c.is_whitespace() || c == '#').next()?,
+            };
+            Some((key.trim().to_string(), value.to_string()))
+        })
+        .collect()
+}
+
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct Look {
+    pub palette: Palette,
+    pub radius: u32,
+    pub font: Option<String>,
+}
+
+impl Look {
+    pub fn stylesheet(&self) -> String {
+        let p = &self.palette;
+        let font = self
+            .font
+            .as_deref()
+            .map(|font| format!("\"{}\", ", font.replace(['"', '\\', ';', '}'], "")))
+            .unwrap_or_default();
+
+        format!(
+            r#":root {{
+    --primary-background-color: {background} !important;
+    --secondary-background-color: {lighter} !important;
+    --modal-background-color: {dark} !important;
+    --primary-foreground-color: {foreground} !important;
+    --secondary-foreground-color: {on_accent} !important;
+    --primary-accent-color: {accent} !important;
+    --secondary-accent-color: {green} !important;
+    --tertiary-accent-color: {yellow} !important;
+    --quaternary-accent-color: {blue} !important;
+    --warning-accent-color: {orange} !important;
+    --danger-accent-color: {red} !important;
+    --overlay-color: {overlay} !important;
+    --outer-glow: 0px 0px 15px {glow} !important;
+    --border-radius: {radius}px !important;
+    color-scheme: {scheme};
+}}
+
+body {{
+    background: var(--primary-background-color) !important;
+}}
+
+body, body * {{
+    font-family: {font}"TwemojiFlags", sans-serif !important;
+}}
+
+::selection {{
+    background-color: {selection} !important;
+}}
+"#,
+            background = p.background,
+            lighter = p.lighter_background,
+            dark = p.dark_background,
+            foreground = p.foreground,
+            on_accent = p.accent.readable_text(),
+            accent = p.accent,
+            green = p.green,
+            yellow = p.yellow,
+            blue = p.blue,
+            orange = p.orange,
+            red = p.red,
+            overlay = p.foreground.alpha(0.06),
+            glow = p.accent.alpha(0.37),
+            radius = self.radius,
+            scheme = if p.light { "light" } else { "dark" },
+            selection = p.accent.alpha(0.35),
+        )
+    }
+}
+
+/// Where Omarchy keeps the current theme.
+pub fn current_directory() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_default()
+        .join(".local/state/omarchy/current")
+}
+
+/// Reads the look the desktop has right now. Every part is optional: without
+/// Omarchy, Hyprland, or fontconfig, that part keeps its default.
+pub fn read_look() -> Look {
+    let colors = fs::read_to_string(current_directory().join("theme/colors.toml"))
+        .map(|text| parse_colors(&text))
+        .unwrap_or_default();
+
+    Look {
+        palette: Palette::from_colors(&colors),
+        radius: hyprland_rounding().unwrap_or(0),
+        font: monospace_font(),
+    }
+}
+
+/// Hyprland's effective window rounding, which themes and personal overrides
+/// can both set, so ask hyprctl rather than reading its config.
+fn hyprland_rounding() -> Option<u32> {
+    std::env::var_os("HYPRLAND_INSTANCE_SIGNATURE")?;
+    let output = Command::new("hyprctl")
+        .args(["-j", "getoption", "decoration:rounding"])
+        .output()
+        .ok()?;
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).ok()?;
+    json.get("int")?.as_u64().map(|value| value as u32)
+}
+
+/// The font Omarchy sets for the desktop (`omarchy font current` reads it the
+/// same way: fontconfig's monospace match).
+fn monospace_font() -> Option<String> {
+    let output = Command::new("fc-match")
+        .args(["monospace", "-f", "%{family}"])
+        .output()
+        .ok()?;
+    let family = String::from_utf8_lossy(&output.stdout);
+    let first = family.split(',').next()?.trim();
+    (!first.is_empty()).then(|| first.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const NETRUNNER: &str = r##"mode = "dark"
+
+accent = "#00e5ff"
+background = "#05080d" # trailing comment
+dark_background = "#04060a"
+lighter_background = "#0d1520"
+foreground = "#c8f0ff"
+hyprland_active_border = "rgba(00e5ffee) rgba(c44dffee) 45deg"
+red = "#ff2e63"
+"##;
+
+    #[test]
+    fn parses_colors_toml() {
+        let colors = parse_colors(NETRUNNER);
+        assert_eq!(colors["accent"], "#00e5ff");
+        assert_eq!(colors["background"], "#05080d");
+        assert_eq!(colors["mode"], "dark");
+    }
+
+    #[test]
+    fn builds_palette_with_fallbacks() {
+        let palette = Palette::from_colors(&parse_colors(NETRUNNER));
+        assert_eq!(palette.accent, Rgb(0x00, 0xe5, 0xff));
+        assert_eq!(palette.red, Rgb(0xff, 0x2e, 0x63));
+        assert!(!palette.light);
+        // Missing keys fall back rather than failing.
+        assert_eq!(palette.green, Rgb(0x22, 0xb3, 0x65));
+    }
+
+    #[test]
+    fn falls_back_without_omarchy() {
+        let palette = Palette::default();
+        assert_eq!(palette.accent, Rgb(0xff, 0xd6, 0x0a));
+        assert!(!palette.light);
+    }
+
+    #[test]
+    fn stylesheet_carries_the_look() {
+        let look = Look {
+            palette: Palette::from_colors(&parse_colors(NETRUNNER)),
+            radius: 6,
+            font: Some("JetBrainsMono Nerd Font".into()),
+        };
+        let css = look.stylesheet();
+        assert!(css.contains("--primary-accent-color: #00e5ff !important;"));
+        assert!(css.contains("--border-radius: 6px !important;"));
+        // Dark text on the bright cyan accent.
+        assert!(css.contains("--secondary-foreground-color: #000000 !important;"));
+        assert!(css.contains("font-family: \"JetBrainsMono Nerd Font\", "));
+    }
+
+    #[test]
+    fn font_names_cannot_break_out_of_the_rule() {
+        let look = Look { font: Some("Evil\"; } body { display: none".into()), ..Look::default() };
+        assert!(!look.stylesheet().contains("display: none;"));
+        assert!(!look.stylesheet().contains("Evil\";"));
+    }
+}

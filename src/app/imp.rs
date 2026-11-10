@@ -18,10 +18,11 @@ use crate::{
         webview::WebView,
         window::Window,
     },
-    spawn_local, utils,
+    omarchy, spawn_local, utils,
 };
 
 const PRELOAD_SCRIPT: &str = include_str!("ipc/preload.js");
+const OMARCHY_SCRIPT: &str = include_str!("omarchy.js");
 
 #[derive(Properties, Default)]
 #[properties(wrapper_type = super::Application)]
@@ -80,7 +81,9 @@ impl ApplicationImpl for Application {
         let webview = WebView::default();
         webview.load_uri(&startup_url);
         webview.inject_script(PRELOAD_SCRIPT);
+        webview.inject_script(OMARCHY_SCRIPT);
         webview.dev_mode(dev_mode);
+        follow_omarchy_look(&webview);
 
         let window = Window::new(&app);
         window.set_property("decorations", self.decorations.get());
@@ -321,3 +324,30 @@ impl ApplicationImpl for Application {
 
 impl GtkApplicationImpl for Application {}
 impl AdwApplicationImpl for Application {}
+
+/// Styles the web UI with the Omarchy theme, and keeps it in step with theme
+/// switches, Hyprland's rounding, and the desktop font. A theme switch
+/// replaces files and symlinks, so polling the result is simpler and sturdier
+/// than re-arming file watches after every switch.
+fn follow_omarchy_look(webview: &WebView) {
+    let current = RefCell::new(omarchy::read_look());
+    webview.set_stylesheet(&current.borrow().stylesheet());
+
+    glib::timeout_add_seconds_local(
+        1,
+        clone!(
+            #[weak]
+            webview,
+            #[upgrade_or]
+            glib::ControlFlow::Break,
+            move || {
+                let look = omarchy::read_look();
+                if look != *current.borrow() {
+                    webview.set_stylesheet(&look.stylesheet());
+                    current.replace(look);
+                }
+                glib::ControlFlow::Continue
+            }
+        ),
+    );
+}

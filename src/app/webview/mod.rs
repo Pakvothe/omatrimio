@@ -11,7 +11,7 @@ use gtk::{
 use tracing::error;
 use webkit::{
     NavigationPolicyDecision, PolicyDecisionType, UserContentInjectedFrames, UserScript,
-    UserScriptInjectionTime, prelude::WebViewExt,
+    UserScriptInjectionTime, UserStyleLevel, UserStyleSheet, prelude::WebViewExt,
 };
 
 glib::wrapper! {
@@ -53,6 +53,23 @@ impl WebView {
 
         if let Some(user_content_manager) = widget.webview.user_content_manager() {
             user_content_manager.add_script(&user_script);
+        }
+    }
+
+    /// Replaces the user stylesheet, which WebKit applies to the loaded page
+    /// right away, so a theme switch restyles the app without a reload.
+    pub fn set_stylesheet(&self, css: &str) {
+        let widget = self.imp();
+
+        if let Some(user_content_manager) = widget.webview.user_content_manager() {
+            user_content_manager.remove_all_style_sheets();
+            user_content_manager.add_style_sheet(&UserStyleSheet::new(
+                css,
+                UserContentInjectedFrames::AllFrames,
+                UserStyleLevel::User,
+                &[],
+                &[],
+            ));
         }
     }
 

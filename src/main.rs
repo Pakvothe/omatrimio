@@ -1,6 +1,7 @@
 mod app;
 mod config;
 mod gpu;
+mod omarchy;
 mod server;
 mod utils;
 
