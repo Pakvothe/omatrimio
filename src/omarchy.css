@@ -1,0 +1,142 @@
+/*
+ * omatrimio's layout over stremio-web: Omarchy's minimal look, after the
+ * theme variables in omarchy.rs. stremio-web's class names end in a hash
+ * that changes every release, so rules match the stable part of the name.
+ *
+ * WebKit injects this as a user stylesheet, and any normal author rule
+ * (stremio-web resets padding on everything) beats a normal user rule, so
+ * every declaration here is !important.
+ */
+
+/* --- Artwork: omatrimio's in place of Stremio's (see omarchy-art.js) --- */
+
+img[data-omatrimio-art="logo"] {
+    content: var(--omatrimio-logo) !important;
+    opacity: 1 !important;
+}
+
+img[data-omatrimio-art="wordmark"] {
+    content: var(--omatrimio-wordmark) !important;
+    object-fit: contain !important;
+}
+
+img[data-omatrimio-art="empty"] {
+    content: var(--omatrimio-empty) !important;
+    object-fit: contain !important;
+}
+
+img[data-omatrimio-art="avatar"] {
+    content: var(--omatrimio-avatar) !important;
+}
+
+:not(img)[data-omatrimio-art="avatar"] {
+    background-image: var(--omatrimio-avatar) !important;
+    background-size: cover !important;
+    background-origin: border-box !important;
+}
+
+/* --- Top bar: the mark and the name, aligned over the side bar --- */
+
+[class*="horizontal-nav-bar-container-"] > [class*="logo-container-"] {
+    width: auto !important;
+    min-width: var(--vertical-nav-bar-size) !important;
+    justify-content: flex-start !important;
+    gap: 0.85rem !important;
+    padding-left: calc((var(--vertical-nav-bar-size) - 2.25rem) / 2) !important;
+    padding-right: 1rem !important;
+}
+
+[class*="horizontal-nav-bar-container-"] > [class*="logo-container-"] > img {
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+}
+
+[class*="horizontal-nav-bar-container-"] > [class*="logo-container-"]::after {
+    content: "omatrimio" !important;
+    font-size: 1.15rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em !important;
+    color: var(--primary-foreground-color) !important;
+}
+
+@media only screen and (max-width: 1000px) {
+    [class*="horizontal-nav-bar-container-"] > [class*="logo-container-"]::after {
+        display: none !important;
+    }
+}
+
+/* --- Side bar: icons only, even squares, the selected tab marked by the
+ *     accent and a bar on the edge, like Hyprland's active border. The
+ *     label stays as the button's tooltip. --- */
+
+[class*="vertical-nav-bar-container-"] {
+    gap: 0.35rem !important;
+    padding: 0.75rem 0 !important;
+}
+
+/* Each button spans the column: a bigger target, a full-row hover, and room
+ * for the bar on the edge, since the scrolling column clips anything
+ * outside its buttons. */
+[class*="vertical-nav-bar-container-"] > [class*="nav-tab-button-container-"] {
+    position: relative !important;
+    flex: none !important;
+    width: 100% !important;
+    height: 3.25rem !important;
+    min-height: 3.25rem !important;
+    border-radius: 0 !important;
+}
+
+[class*="nav-tab-button-container-"] > [class*="label-"] {
+    display: none !important;
+}
+
+[class*="nav-tab-button-container-"] > [class*="icon-"],
+[class*="nav-tab-button-container-"] > [class*="logo-"] {
+    width: 1.6rem !important;
+    height: 1.6rem !important;
+    margin: 0 !important;
+    opacity: 0.45 !important;
+    transition: opacity 0.12s ease-out !important;
+}
+
+[class*="nav-tab-button-container-"]:hover > [class*="icon-"],
+[class*="nav-tab-button-container-"]:hover > [class*="logo-"] {
+    opacity: 0.85 !important;
+}
+
+[class*="nav-tab-button-container-"].selected > [class*="icon-"],
+[class*="nav-tab-button-container-"].selected > [class*="logo-"] {
+    opacity: 1 !important;
+}
+
+[class*="vertical-nav-bar-container-"] > [class*="nav-tab-button-container-"].selected::before {
+    content: "" !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 22% !important;
+    bottom: 22% !important;
+    width: 3px !important;
+    background-color: var(--primary-accent-color) !important;
+}
+
+/* Narrow windows turn the side bar into a bottom row; the bar moves under
+ * the selected icon. */
+@media only screen and (max-width: 640px) {
+    [class*="vertical-nav-bar-container-"] {
+        justify-content: space-around !important;
+        padding: 0 0.5rem !important;
+    }
+
+    [class*="vertical-nav-bar-container-"] > [class*="nav-tab-button-container-"] {
+        width: 3.25rem !important;
+    }
+
+    [class*="vertical-nav-bar-container-"] > [class*="nav-tab-button-container-"].selected::before {
+        left: 25% !important;
+        right: 25% !important;
+        top: auto !important;
+        bottom: 0 !important;
+        width: auto !important;
+        height: 3px !important;
+    }
+}

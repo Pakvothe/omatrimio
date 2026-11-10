@@ -15,6 +15,11 @@
 
 use std::{collections::HashMap, fmt, fs, path::PathBuf, process::Command};
 
+use crate::art;
+
+/// The layout over stremio-web: side bar, top bar, and artwork.
+const LAYOUT: &str = include_str!("omarchy.css");
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Rgb(pub u8, pub u8, pub u8);
 
@@ -151,7 +156,7 @@ impl Look {
         let font = self
             .font
             .as_deref()
-            .map(|font| format!("\"{}\", ", font.replace(['"', '\\', ';', '}'], "")))
+            .map(|font| format!("\"{}\", ", safe_font_name(font)))
             .unwrap_or_default();
 
         format!(
@@ -169,6 +174,10 @@ impl Look {
     --on-danger-accent-color: {on_red} !important;
     --primary-accent-color: {accent} !important;
     --secondary-accent-color: {accent} !important;
+    --omatrimio-logo: {art_logo};
+    --omatrimio-wordmark: {art_wordmark};
+    --omatrimio-empty: {art_empty};
+    --omatrimio-avatar: {art_avatar};
     --tertiary-accent-color: {yellow} !important;
     --quaternary-accent-color: {blue} !important;
     --warning-accent-color: {orange} !important;
@@ -215,8 +224,25 @@ svg[data-omatrimio-icon] > text {{
             radius = self.radius,
             scheme = if p.light { "light" } else { "dark" },
             selection = p.accent.alpha(0.35),
-        )
+            art_logo = art::css_url(&art::mark(p.accent, p.foreground)),
+            art_wordmark = art::css_url(&art::wordmark(
+                p.accent,
+                p.foreground,
+                p.foreground,
+                self.font.as_deref().unwrap_or("monospace"),
+            )),
+            art_empty = art::css_url(&art::empty(p.foreground)),
+            art_avatar = art::css_url(&art::avatar(p.accent, p.accent.readable_text(p))),
+        ) + LAYOUT
     }
+}
+
+/// A font family name with only the characters font names use, so it can't
+/// close the CSS string or rule (or the SVG attribute) it's placed in.
+pub fn safe_font_name(font: &str) -> String {
+    font.chars()
+        .filter(|c| c.is_alphanumeric() || matches!(c, ' ' | '-' | '_' | '.'))
+        .collect()
 }
 
 /// Where Omarchy keeps the current theme.
@@ -332,7 +358,9 @@ red = "#ff2e63"
     #[test]
     fn font_names_cannot_break_out_of_the_rule() {
         let look = Look { font: Some("Evil\"; } body { display: none".into()), ..Look::default() };
-        assert!(!look.stylesheet().contains("display: none;"));
+        // The quote and brace are stripped, so the name can't close the
+        // rule and start a new one.
+        assert!(!look.stylesheet().contains("} body {"));
         assert!(!look.stylesheet().contains("Evil\";"));
     }
 }

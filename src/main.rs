@@ -1,4 +1,5 @@
 mod app;
+mod art;
 mod config;
 mod gpu;
 mod omarchy;

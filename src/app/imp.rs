@@ -25,6 +25,7 @@ const PRELOAD_SCRIPT: &str = include_str!("ipc/preload.js");
 const OMARCHY_SCRIPT: &str = include_str!("omarchy.js");
 const ICON_TABLE_SCRIPT: &str = include_str!("icons.js");
 const ICON_SCRIPT: &str = include_str!("omarchy-icons.js");
+const ART_SCRIPT: &str = include_str!("omarchy-art.js");
 
 #[derive(Properties, Default)]
 #[properties(wrapper_type = super::Application)]
@@ -86,6 +87,7 @@ impl ApplicationImpl for Application {
         webview.inject_script(OMARCHY_SCRIPT);
         webview.inject_script(ICON_TABLE_SCRIPT);
         webview.inject_script(ICON_SCRIPT);
+        webview.inject_script(ART_SCRIPT);
         webview.dev_mode(dev_mode);
         follow_omarchy_look(&webview);
 
