@@ -64,12 +64,15 @@ pub fn empty(color: Rgb) -> String {
     )
 }
 
-/// The mark beside the name, for the sign-in screen.
+/// The mark beside the name, for the sign-in screen. The name is fitted to
+/// a fixed width, so it never runs past the drawing's edge however wide the
+/// desktop font is.
 pub fn wordmark(ring: Rgb, play: Rgb, text: Rgb, font: &str) -> String {
     format!(
-        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='136 136 1000 240'>{mark}\
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='136 136 1070 240'>{mark}\
          <text x='430' y='256' dominant-baseline='central' font-family=\"{font}, monospace\" \
-         font-size='150' font-weight='700' letter-spacing='-4' fill='{text}'>omatrimio</text></svg>",
+         font-size='150' font-weight='700' textLength='760' lengthAdjust='spacingAndGlyphs' \
+         fill='{text}'>omatrimio</text></svg>",
         mark = mark_paths(&ring.to_string(), &play.to_string()),
         font = crate::omarchy::safe_font_name(font),
     )
@@ -153,6 +156,15 @@ mod tests {
     fn data_uri_escapes_what_css_and_urls_need() {
         let url = css_url("<svg fill='#fff'>\"%</svg>");
         assert_eq!(url, "url(\"data:image/svg+xml,%3Csvg fill='%23fff'%3E%22%25%3C/svg%3E\")");
+    }
+
+    #[test]
+    fn wordmark_text_ends_inside_the_drawing() {
+        // The text starts at 430 and is fitted to 760 units: it ends at 1190,
+        // inside a view box that runs from 136 to 1206.
+        let svg = wordmark(Rgb(0, 0, 0), Rgb(1, 1, 1), Rgb(2, 2, 2), "JetBrainsMono Nerd Font");
+        assert!(svg.contains("viewBox='136 136 1070 240'"));
+        assert!(svg.contains("x='430'") && svg.contains("textLength='760'"));
     }
 
     #[test]

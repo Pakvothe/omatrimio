@@ -118,6 +118,14 @@
         return saturation >= 0.2 && hue >= 215 && hue <= 285 ? { lightness } : false;
     };
 
+    // The sign-in screen lays Stremio's purple glow artwork behind itself
+    // from its stylesheet; omatrimio's is the plain theme background.
+    const dropBrandBackdrop = (style) => {
+        if (style.getPropertyValue('background-image').includes('/images/background_')) {
+            style.setProperty('background-image', 'none', 'important');
+        }
+    };
+
     const retint = (style) => {
         for (const property of TINTED) {
             const value = style.getPropertyValue(property);
@@ -147,6 +155,7 @@
             // so the browser reports it only on the shorthand.
             cap(rule.style, 'border-radius');
             for (const corner of CORNERS) cap(rule.style, corner);
+            dropBrandBackdrop(rule.style);
             retint(rule.style);
             if (rule.selectorText) textOnAccent(rule, container);
         }
